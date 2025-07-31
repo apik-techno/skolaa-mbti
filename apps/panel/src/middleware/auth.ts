@@ -15,7 +15,7 @@ export const authMiddleware: MiddlewareFunction = async (req, event) => {
     if (!authData) throw new Error('No access data')
     sessions.user = {
       name: authData.session.name || '',
-      email: authData.session.email || '',
+      identity: authData.session.identity || '',
       id: authData.session.id || '',
     }
     sessions.role = authData.session.role || ''

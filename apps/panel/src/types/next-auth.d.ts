@@ -8,14 +8,16 @@ declare module 'next-auth' {
     exp?: number
     jti?: string
   }
-  interface User extends AuthSessionData {}
+  interface User extends AuthSessionData {
+    identity: string
+  }
 
   interface Session {
     session: User
   }
 
   interface CredentialsInputs {
-    email: string
+    identity: string
     password: string
   }
 }
