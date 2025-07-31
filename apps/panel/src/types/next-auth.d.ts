@@ -9,7 +9,8 @@ declare module 'next-auth' {
     jti?: string
   }
   interface User extends AuthSessionData {
-    identity: string
+    user: AuthUserData
+    role?: string
   }
 
   interface Session {
