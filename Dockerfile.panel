@@ -53,4 +53,6 @@ COPY --from=installer --chown=nextjs:nodejs /app/apps/panel/.next/standalone ./
 COPY --from=installer --chown=nextjs:nodejs /app/apps/panel/public /app/apps/panel/public
 COPY --from=installer --chown=nextjs:nodejs /app/apps/panel/.next/static ./apps/panel/.next/static
 
+EXPOSE 3000
+
 CMD node apps/panel/server.js
