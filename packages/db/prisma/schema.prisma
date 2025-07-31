@@ -1,0 +1,54 @@
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+// Administration
+model User {
+    id        String   @id @default(uuid()) @map("id")
+    name      String
+    identity  String   @unique @map("identity")
+    password  String?
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+    roleId    String?
+
+    answers Answer[]
+    role    Role?    @relation(fields: [roleId], references: [id])
+
+    @@map("users")
+}
+
+model Role {
+    id        String   @id @default(uuid()) @map("id")
+    name      String   @unique
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    users User[]
+
+    @@map("roles")
+}
+
+model Answer {
+    id             String @id @default(uuid()) @map("id")
+    mainAnswer     String @map("main_answer")
+    subAnswer      String @map("sub_answer")
+    mbtiTestResult String @map("mbti_test_result")
+
+    // AI Result & Recommendation
+    aiResult         String? @map("ai_result")
+    aiRecommendation String? @map("ai_recommendation")
+
+    userId String @map("user_id")
+    user   User   @relation(fields: [userId], references: [id])
+
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    @@map("answers")
+}

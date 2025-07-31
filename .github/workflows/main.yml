@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+
+jobs:
+  build-panel:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Log in to Github Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.CI_REGISTRY_USER }}
+          password: ${{ secrets.CI_REGISTRY_PASSWORD }}
+
+      - name: Create .env file (staging)
+        if: github.ref == 'refs/heads/staging'
+        run: echo "${{ secrets.STAGING_ENV_FILE }}" > .env
+
+      - name: Create .env file (production)
+        if: github.ref == 'refs/heads/main'
+        run: echo "${{ secrets.PRODUCTION_ENV_FILE }}" > .env
+
+      - name: Build and push panel image (staging)
+        if: github.ref == 'refs/heads/staging'
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./Dockerfile.panel
+          push: true
+          tags: ghcr.io/${{ github.repository }}:panel-staging
+
+      - name: Build and push panel image (production)
+        if: github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./Dockerfile.panel
+          push: true
+          tags: ghcr.io/${{ github.repository }}:panel-production
+

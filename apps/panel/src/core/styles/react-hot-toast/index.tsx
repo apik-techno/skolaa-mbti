@@ -1,0 +1,34 @@
+// ** MUI Imports
+import Box, { BoxProps } from '@mui/material/Box'
+import { styled } from '@mui/material/styles'
+
+const ReactHotToast: React.FC<BoxProps> = styled(Box)<BoxProps>(({ theme }) => {
+  return {
+    '& > div': {
+      right: `${theme.spacing(6)} !important`,
+      bottom: `${theme.spacing(6)} !important`,
+      zIndex: `${theme.zIndex.modal + 200} !important`,
+    },
+    '& .react-hot-toast': {
+      fontWeight: 400,
+      borderRadius: 8,
+      fontSize: '1rem',
+      letterSpacing: '0.14px',
+      color: theme.palette.text.primary,
+      background: theme.palette.background.paper,
+      boxShadow:
+        theme.palette.mode === 'light'
+          ? '0px 4px 10px -4px rgba(76, 78, 100, 0.6)'
+          : '0px 8px 16px -4px rgba(20, 21, 33, 0.65)',
+      '&>:first-of-type:not([role])>:first-of-type': {
+        width: 14,
+        height: 14,
+      },
+      '& > div': {
+        zIndex: `${theme.zIndex.modal + 1000} !important`,
+      },
+    },
+  }
+})
+
+export default ReactHotToast

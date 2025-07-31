@@ -1,0 +1,99 @@
+/**
+ *
+ * This is an example router, you can delete this file and then update `../pages/api/trpc/[trpc].tsx`
+ */
+import { auth } from '@/auth'
+import { baseResponse } from '@/utils/response'
+import { prisma } from '@repo/db'
+import { TRPCError } from '@trpc/server'
+import OpenAI from 'openai'
+import { z } from 'zod'
+import { privateProcedure, router } from '../trpc'
+
+const openai = new OpenAI({
+  apiKey:
+    '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',
+})
+
+export const quizRouter = router({
+  makeAnswer: privateProcedure
+    .input(
+      z.object({
+        mainAnswer: z.string().nonempty('Main answer cannot be empty'),
+        subAnswer: z.string().optional(),
+        mbtiTestResult: z.string().nonempty('MBTI test result cannot be empty'),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const own = await auth()
+      if (!own || !own.session.id) throw new TRPCError({ code: 'BAD_REQUEST', message: 'User not found' })
+
+      // Construct the content for AI, making subAnswer optional
+      let userContent = `User's main answer: ${input.mainAnswer}, User's MBTI test result: ${input.mbtiTestResult}.`
+      if (input.subAnswer && input.subAnswer.trim() !== '') {
+        userContent += ` User's additional answer: ${input.subAnswer}.`
+      }
+      userContent += ' Provide a career recommendation and detailed explanation in JSON format.'
+
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You are a helpful assistant that provides career recommendations based on user input. Your response should be in JSON format with two fields: "recomendation" (short career recommendation in Indonesian) and "recomendationDetail" (detailed explanation in Indonesian).',
+          },
+          {
+            role: 'user',
+            content: userContent,
+          },
+        ],
+        response_format: { type: 'json_object' },
+        max_tokens: 500,
+        temperature: 0.7,
+      })
+
+      const aiResponse = response.choices[0]?.message.content
+      let aiResult = null
+      let aiRecommendation = null
+
+      if (aiResponse) {
+        try {
+          const parsedResponse = JSON.parse(aiResponse)
+          aiResult = parsedResponse.recomendation || 'Rekomendasi karir tidak tersedia'
+          aiRecommendation = parsedResponse.recomendationDetail || 'Rekomendasi detail tidak tersedia'
+        } catch {
+          aiResult = 'Error saat memproses respons AI'
+          aiRecommendation = 'Silakan coba lagi nanti'
+        }
+      }
+
+      await prisma.answer.create({
+        data: {
+          mainAnswer: input.mainAnswer,
+          subAnswer: input.subAnswer || '', // Store empty string if not provided
+          mbtiTestResult: input.mbtiTestResult,
+          aiResult,
+          aiRecommendation,
+          userId: own.session.id,
+        },
+      })
+      return baseResponse({ message: 'Answer saved successfully', result: null })
+    }),
+
+  latestAnswer: privateProcedure.query(async () => {
+    const own = await auth()
+    if (!own || !own.session.id) throw new TRPCError({ code: 'BAD_REQUEST', message: 'User not found' })
+
+    const latestAnswer = await prisma.answer.findFirst({
+      where: { userId: own.session.id },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    if (!latestAnswer) {
+      throw new TRPCError({ code: 'NOT_FOUND', message: 'No answers found for the user' })
+    }
+
+    return baseResponse({ message: 'Latest answer retrieved successfully', result: latestAnswer })
+  }),
+})
