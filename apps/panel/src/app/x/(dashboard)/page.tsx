@@ -157,7 +157,7 @@ export default function Page() {
   return (
     <Box sx={{ width: '100%', maxWidth: 800, mx: 'auto', p: 2 }}>
       <Typography component="h1" variant="h4" sx={{ mb: 3, textAlign: 'center' }}>
-        Dashboard Quiz
+        {hasLatestAnswer ? 'Hasil Kecocokan Terakhir' : 'Rekomendasi Karir Berdasarkan Pilihan Anda'}
       </Typography>
 
       {submitStatus === 'success' && (
@@ -224,7 +224,7 @@ export default function Page() {
 
             {/* AI Response Section */}
             <Typography variant="h6" component="h3" color="secondary" gutterBottom>
-              Rekomendasi AI
+              Rekomendasi
             </Typography>
 
             {latestAnswer.aiResult && (
