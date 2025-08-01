@@ -26,7 +26,14 @@ export const quizRouter = router({
     )
     .mutation(async ({ input }) => {
       const own = await auth()
-      if (!own || !own.session.id) throw new TRPCError({ code: 'BAD_REQUEST', message: 'User not found' })
+      if (!own || !own.session?.id) throw new TRPCError({ code: 'BAD_REQUEST', message: 'User not found' })
+
+      // Get userId from the authenticated user
+      const userId = own.session.user?.id || own.session.id
+
+      // Verify user exists in database
+      const user = await prisma.user.findFirst({ where: { id: userId } })
+      if (!user) throw new TRPCError({ code: 'BAD_REQUEST', message: 'User not found in database' })
 
       // Construct the content for AI, making subAnswer optional
       let userContent = `User's main answer: ${input.mainAnswer}, User's MBTI test result: ${input.mbtiTestResult}.`
@@ -75,7 +82,7 @@ export const quizRouter = router({
           mbtiTestResult: input.mbtiTestResult,
           aiResult,
           aiRecommendation,
-          userId: own.session.id,
+          userId: userId,
         },
       })
       return baseResponse({ message: 'Answer saved successfully', result: null })
@@ -83,10 +90,13 @@ export const quizRouter = router({
 
   latestAnswer: privateProcedure.query(async () => {
     const own = await auth()
-    if (!own || !own.session.id) throw new TRPCError({ code: 'BAD_REQUEST', message: 'User not found' })
+    if (!own || !own.session?.id) throw new TRPCError({ code: 'BAD_REQUEST', message: 'User not found' })
+
+    // Get userId from the authenticated user
+    const userId = own.session.user?.id || own.session.id
 
     const latestAnswer = await prisma.answer.findFirst({
-      where: { userId: own.session.id },
+      where: { userId: userId },
       orderBy: { createdAt: 'desc' },
     })
 
