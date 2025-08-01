@@ -25,7 +25,9 @@ export default function Page() {
   const [showSubAnswer, setShowSubAnswer] = useState(false)
   const [formData, setFormData] = useState({
     mainAnswer: '',
+    mainReason: '',
     subAnswer: '',
+    subReason: '',
     mbtiTestResult: '',
   })
 
@@ -48,7 +50,9 @@ export default function Page() {
       setShowForm(false)
       setFormData({
         mainAnswer: '',
+        mainReason: '',
         subAnswer: '',
+        subReason: '',
         mbtiTestResult: '',
       })
       setShowSubAnswer(false)
@@ -112,7 +116,9 @@ export default function Page() {
     setShowSubAnswer(false)
     setFormData({
       mainAnswer: '',
+      mainReason: '',
       subAnswer: '',
+      subReason: '',
       mbtiTestResult: '',
     })
     setSubmitStatus('idle')
@@ -170,7 +176,7 @@ export default function Page() {
           <CardContent>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
               <Typography variant="h6" component="h2" color="primary">
-                Hasil Quiz Terbaru
+                Hasil Kecocokan Terakhir
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 {new Date(latestAnswer.createdAt).toLocaleDateString('id-ID', {
@@ -258,7 +264,9 @@ export default function Page() {
           <CardContent>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
               <Typography variant="h6" component="h2">
-                {hasLatestAnswer ? 'Kirim Jawaban Quiz Baru' : 'Form Jawaban Quiz'}
+                {hasLatestAnswer
+                  ? 'Hasil Kecocokan Terkahir'
+                  : 'Kira-kira apa yang ingin kamu lakukan setelah lulus dari SMA ? Kuliah, Bekerja, Wirausaha apa gimana ?'}
               </Typography>
               {hasLatestAnswer && showForm && (
                 <Button variant="outlined" onClick={handleCancelForm}>
@@ -281,6 +289,18 @@ export default function Page() {
                   placeholder="Masukkan pilihan utama Anda di sini..."
                 />
 
+                <TextField
+                  label="Alasan"
+                  variant="outlined"
+                  fullWidth
+                  multiline
+                  rows={4}
+                  value={formData.mainReason}
+                  onChange={(e) => handleInputChange('mainReason', e.target.value)}
+                  required
+                  placeholder="Masukkan alasan pilihan utama Anda di sini..."
+                />
+
                 <FormControlLabel
                   control={
                     <Checkbox checked={showSubAnswer} onChange={(e) => handleSubAnswerToggle(e.target.checked)} />
@@ -298,6 +318,18 @@ export default function Page() {
                     value={formData.subAnswer}
                     onChange={(e) => handleInputChange('subAnswer', e.target.value)}
                     placeholder="Masukkan pilihan lainnya Anda di sini..."
+                  />
+                )}
+                {showSubAnswer && (
+                  <TextField
+                    label="Alasan Pilihan Lainnya"
+                    variant="outlined"
+                    fullWidth
+                    multiline
+                    rows={3}
+                    value={formData.subReason}
+                    onChange={(e) => handleInputChange('subReason', e.target.value)}
+                    placeholder="Masukkan alasan pilihan lainnya Anda di sini..."
                   />
                 )}
 

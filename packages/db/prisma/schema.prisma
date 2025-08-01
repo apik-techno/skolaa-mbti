@@ -37,7 +37,9 @@ model Role {
 model Answer {
     id             String @id @default(uuid()) @map("id")
     mainAnswer     String @map("main_answer")
+    mainReason     String @map("main_reason")
     subAnswer      String @map("sub_answer")
+    subReason      String @map("sub_reason")
     mbtiTestResult String @map("mbti_test_result")
 
     // AI Result & Recommendation

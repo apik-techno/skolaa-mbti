@@ -20,7 +20,9 @@ export const quizRouter = router({
     .input(
       z.object({
         mainAnswer: z.string().nonempty('Main answer cannot be empty'),
+        mainReason: z.string().nonempty('Main reason cannot be empty'),
         subAnswer: z.string().optional(),
+        subReason: z.string().optional(),
         mbtiTestResult: z.string().nonempty('MBTI test result cannot be empty'),
       }),
     )
@@ -36,9 +38,12 @@ export const quizRouter = router({
       if (!user) throw new TRPCError({ code: 'BAD_REQUEST', message: 'User not found in database' })
 
       // Construct the content for AI, making subAnswer optional
-      let userContent = `User's main answer: ${input.mainAnswer}, User's MBTI test result: ${input.mbtiTestResult}.`
+      let userContent = `User's main answer: ${input.mainAnswer}, Main reason: ${input.mainReason}, User's MBTI test result: ${input.mbtiTestResult}.`
       if (input.subAnswer && input.subAnswer.trim() !== '') {
         userContent += ` User's additional answer: ${input.subAnswer}.`
+        if (input.subReason && input.subReason.trim() !== '') {
+          userContent += ` Additional reason: ${input.subReason}.`
+        }
       }
       userContent += ' Provide a career recommendation and detailed explanation in JSON format.'
 
@@ -78,7 +83,9 @@ export const quizRouter = router({
       await prisma.answer.create({
         data: {
           mainAnswer: input.mainAnswer,
+          mainReason: input.mainReason,
           subAnswer: input.subAnswer || '', // Store empty string if not provided
+          subReason: input.subReason || '', // Store empty string if not provided
           mbtiTestResult: input.mbtiTestResult,
           aiResult,
           aiRecommendation,
