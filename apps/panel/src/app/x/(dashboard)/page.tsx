@@ -99,7 +99,9 @@ export default function Page() {
     const dataToSend = {
       mainAnswer: formData.mainAnswer,
       mbtiTestResult: formData.mbtiTestResult,
+      mainReason: formData.mainReason,
       ...(showSubAnswer && formData.subAnswer.trim() !== '' ? { subAnswer: formData.subAnswer } : {}),
+      ...(showSubAnswer && formData.subReason.trim() !== '' ? { subReason: formData.subReason } : {}),
     }
 
     answerMutation.mutate(dataToSend)
