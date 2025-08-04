@@ -8,7 +8,8 @@ import { prisma } from '@repo/db'
 import { TRPCError } from '@trpc/server'
 import OpenAI from 'openai'
 import { z } from 'zod'
-import { privateProcedure, router } from '../trpc'
+import { pagination } from '../global'
+import { privateProcedure, publicProcedure, router } from '../trpc'
 
 const openai = new OpenAI({
   apiKey:
@@ -113,4 +114,36 @@ export const quizRouter = router({
 
     return baseResponse({ message: 'Latest answer retrieved successfully', result: latestAnswer })
   }),
+
+  listAnswers: publicProcedure
+    .input(z.object({ ...pagination, showAll: z.boolean().optional() }).partial())
+    .query(async ({ input }) => {
+      const { page = 0, pageSize = 10, search, showAll } = input
+
+      // Build where clause for search
+      const where = search
+        ? {
+            user: {
+              OR: [
+                { name: { contains: search, mode: 'insensitive' as const } },
+                { identity: { contains: search, mode: 'insensitive' as const } },
+              ],
+            },
+          }
+        : {}
+
+      const result = await prisma.answer.findMany({
+        where,
+        ...(showAll ? {} : { take: pageSize, skip: page * pageSize }),
+        orderBy: { createdAt: 'desc' },
+        include: { user: { select: { id: true, name: true, identity: true } } },
+      })
+      const total = await prisma.answer.count({ where })
+      const lastPage = Math.ceil(total / pageSize)
+      return baseResponse({
+        message: 'Success',
+        result,
+        paginate: showAll ? undefined : { page, pageSize, lastPage, total },
+      })
+    }),
 })
