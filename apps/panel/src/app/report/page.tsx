@@ -24,6 +24,13 @@ import React from 'react'
 const initialPage = { page: 0, pageSize: 10, search: '' }
 
 // Define type for Answer row
+type Score = {
+  id: string
+  value: number
+  group?: { name: string }
+  groupId?: string
+  title?: string
+}
 type AnswerRow = {
   id: string
   mainAnswer: string
@@ -39,6 +46,7 @@ type AnswerRow = {
     name: string
     identity: string
   }
+  scores?: Score[]
 }
 
 // Detail Modal Component
@@ -96,6 +104,27 @@ const DetailModal = ({ open, onClose, data }: { open: boolean; onClose: () => vo
               </Box>
             </Card>
           </Grid2>
+
+          {/* Nilai Scores */}
+          {data.scores && data.scores.length > 0 && (
+            <Grid2 size={{ xs: 12 }}>
+              <Card variant="outlined">
+                <Box p={2}>
+                  <Typography variant="subtitle1" gutterBottom color="primary" fontWeight={600}>
+                    Nilai Mata Pelajaran
+                  </Typography>
+                  <Box display="flex" flexDirection="column" gap={1}>
+                    {data.scores.map((score) => (
+                      <Box key={score.id} display="flex" justifyContent="space-between">
+                        <Typography>{score.group?.name || score.title || '-'}</Typography>
+                        <Typography fontWeight="bold">{score.value}</Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              </Card>
+            </Grid2>
+          )}
 
           {/* Main Answer */}
           <Grid2 size={{ xs: 12 }}>
@@ -342,40 +371,42 @@ const Page = () => {
   }, [value])
 
   return (
-    <Grid2 container spacing={6}>
-      <Grid2 size={{ xs: 12 }}>
-        <Card>
-          <CardHeader
-            title="Laporan Jawaban Quiz"
-            sx={{ pb: 4, '& .MuiCardHeader-title': { letterSpacing: '.15px' } }}
-          />
-          <Divider />
-          <Box ref={containerRef}>
-            <TableHeader title="Cari berdasarkan nama atau NIS" value={value} handleFilter={handleFilter} />
-            <DataGrid
-              loading={isLoading}
-              rows={_list?.result || []}
-              rowCount={rowCount}
-              columns={columns}
-              disableColumnFilter
-              disableRowSelectionOnClick
-              disableColumnSorting
-              pageSizeOptions={[10, 25, 50]}
-              initialState={{
-                pagination: { paginationModel: initialPage },
-              }}
-              paginationMode="server"
-              paginationModel={paginationModel}
-              onPaginationModelChange={({ page, pageSize }) => setPaginationModel((s) => ({ ...s, page, pageSize }))}
-              sx={{ '& .MuiDataGrid-columnHeaders': { borderRadius: 0 } }}
+    <Box sx={{ p: 4 }}>
+      <Grid2 container spacing={6}>
+        <Grid2 size={{ xs: 12 }}>
+          <Card>
+            <CardHeader
+              title="Laporan Jawaban Quiz"
+              sx={{ pb: 4, '& .MuiCardHeader-title': { letterSpacing: '.15px' } }}
             />
-          </Box>
-        </Card>
-      </Grid2>
+            <Divider />
+            <Box ref={containerRef}>
+              <TableHeader title="Cari berdasarkan nama atau NIS" value={value} handleFilter={handleFilter} />
+              <DataGrid
+                loading={isLoading}
+                rows={_list?.result || []}
+                rowCount={rowCount}
+                columns={columns}
+                disableColumnFilter
+                disableRowSelectionOnClick
+                disableColumnSorting
+                pageSizeOptions={[10, 25, 50]}
+                initialState={{
+                  pagination: { paginationModel: initialPage },
+                }}
+                paginationMode="server"
+                paginationModel={paginationModel}
+                onPaginationModelChange={({ page, pageSize }) => setPaginationModel((s) => ({ ...s, page, pageSize }))}
+                sx={{ '& .MuiDataGrid-columnHeaders': { borderRadius: 0 } }}
+              />
+            </Box>
+          </Card>
+        </Grid2>
 
-      {/* Detail Modal */}
-      <DetailModal open={modalOpen} onClose={handleCloseModal} data={selectedRow} />
-    </Grid2>
+        {/* Detail Modal */}
+        <DetailModal open={modalOpen} onClose={handleCloseModal} data={selectedRow} />
+      </Grid2>
+    </Box>
   )
 }
 

@@ -105,8 +105,53 @@ async function upsertUser(userData: Prisma.UserUncheckedCreateInput) {
   })
 }
 
+// Seeder for ScoreGroup
+async function scoreGroups() {
+  const groups = [
+    'Pendidikan Agama Islam dan Budi Pekerti',
+    'Pendidikan Pancasila dan Kewarganegaraan',
+    'Bahasa Indonesia',
+    'Matematika',
+    'Sejarah Indonesia',
+    'Bahasa Inggris',
+    'Seni Budaya',
+    'Pendidikan Jasmani, Olahraga dan Kesehatan',
+    'Prakarya dan Kewirausahaan',
+    'Muatam Lokal Bahasa Daerah',
+    'Sejarah',
+    'Ekonomi',
+    'Geografi',
+    'Sosiologi',
+    'Bahasa Arab',
+    'Kecerdasan Umum',
+    'Pemahaman',
+    'Kemampuan Bahasa',
+    'Kemampuan Angka',
+    'Kemampuan Analisis',
+    'Kreativitas',
+    'Daya Ingat',
+    'Kemampuan Daya Bayang Ruang',
+    'Dorongan Berprestasi',
+    'Konsentrasi',
+    'Ketelitian',
+    'Kecepatan',
+    'Kepercayaan Diri',
+    'Stabilitas Emosi',
+    'Hubungan Antar Pribadi',
+    'Penyesuaian Diri',
+    'Kemandirian',
+  ]
+  for (const name of groups) {
+    await prisma.scoreGroup.upsert({
+      where: { name },
+      update: {},
+      create: { name },
+    })
+  }
+}
+
 async function main() {
-  const seeders: Promise<void>[] = [user()]
+  const seeders: Promise<void>[] = [user(), scoreGroups()]
   await Promise.all(seeders)
 }
 

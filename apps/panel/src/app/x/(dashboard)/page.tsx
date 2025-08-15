@@ -16,20 +16,74 @@ import Paper from '@mui/material/Paper'
 import Select from '@mui/material/Select'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { trpc } from '@/server/client'
 
+type FormData = {
+  mainAnswer: string
+  mainReason: string
+  subAnswer: string
+  subReason: string
+  mbtiTestResult: string
+  scores: { groupId: string; score: number; title: string }[]
+}
+const initForm: FormData = {
+  mainAnswer: '',
+  mainReason: '',
+  subAnswer: '',
+  subReason: '',
+  mbtiTestResult: '',
+  scores: [],
+}
+const mbtiTypes = [
+  'INTJ',
+  'INTP',
+  'ENTJ',
+  'ENTP',
+  'INFJ',
+  'INFP',
+  'ENFJ',
+  'ENFP',
+  'ISTJ',
+  'ISFJ',
+  'ESTJ',
+  'ESFJ',
+  'ISTP',
+  'ISFP',
+  'ESTP',
+  'ESFP',
+]
 export default function Page() {
   const [showForm, setShowForm] = useState(false)
   const [showSubAnswer, setShowSubAnswer] = useState(false)
-  const [formData, setFormData] = useState({
-    mainAnswer: '',
-    mainReason: '',
-    subAnswer: '',
-    subReason: '',
-    mbtiTestResult: '',
-  })
+  const [formData, setFormData] = useState<FormData>(initForm)
+
+  // Ambil score groups
+  const { data: scoreGroupsData, isLoading: isLoadingScoreGroups } = trpc.scoreGroup.list.useQuery()
+  const scoreGroups = scoreGroupsData || []
+
+  // Inisialisasi scores jika scoreGroups berubah
+  useEffect(() => {
+    if (scoreGroups.length > 0 && formData.scores.length === 0) {
+      setFormData((prev) => ({
+        ...prev,
+        scores: scoreGroups.map((g) => ({ groupId: g.id, score: 0, title: g.name })),
+      }))
+    }
+    // eslint-disable-next-line
+  }, [scoreGroups])
+
+  // Handler untuk input score
+  const handleScoreChange = (groupId: string, value: number) => {
+    setFormData((prev) => {
+      const updatedScores = prev.scores.map((s) => (s.groupId === groupId ? { ...s, score: value } : s))
+      return {
+        ...prev,
+        scores: updatedScores,
+      }
+    })
+  }
 
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const [errorMessage, setErrorMessage] = useState('')
@@ -48,13 +102,7 @@ export default function Page() {
     onSuccess: () => {
       setSubmitStatus('success')
       setShowForm(false)
-      setFormData({
-        mainAnswer: '',
-        mainReason: '',
-        subAnswer: '',
-        subReason: '',
-        mbtiTestResult: '',
-      })
+      setFormData(initForm)
       setShowSubAnswer(false)
       // Refetch latest answer
       window.location.reload()
@@ -64,25 +112,6 @@ export default function Page() {
       setErrorMessage(error.message)
     },
   })
-
-  const mbtiTypes = [
-    'INTJ',
-    'INTP',
-    'ENTJ',
-    'ENTP',
-    'INFJ',
-    'INFP',
-    'ENFJ',
-    'ENFP',
-    'ISTJ',
-    'ISFJ',
-    'ESTJ',
-    'ESFJ',
-    'ISTP',
-    'ISFP',
-    'ESTP',
-    'ESFP',
-  ]
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({
@@ -95,13 +124,17 @@ export default function Page() {
     e.preventDefault()
     setSubmitStatus('idle')
 
-    // Prepare data to send, only include subAnswer if it's enabled and has content
+    // Prepare scores as number
+    const scoresToSend = formData.scores
+      .map((s) => ({ groupId: s.groupId, score: Number(s.score), title: s.title }))
+      .filter((s) => s.score >= 0)
     const dataToSend = {
       mainAnswer: formData.mainAnswer,
       mbtiTestResult: formData.mbtiTestResult,
       mainReason: formData.mainReason,
       ...(showSubAnswer && formData.subAnswer.trim() !== '' ? { subAnswer: formData.subAnswer } : {}),
       ...(showSubAnswer && formData.subReason.trim() !== '' ? { subReason: formData.subReason } : {}),
+      scroes: scoresToSend,
     }
 
     answerMutation.mutate(dataToSend)
@@ -116,13 +149,7 @@ export default function Page() {
   const handleCancelForm = () => {
     setShowForm(false)
     setShowSubAnswer(false)
-    setFormData({
-      mainAnswer: '',
-      mainReason: '',
-      subAnswer: '',
-      subReason: '',
-      mbtiTestResult: '',
-    })
+    setFormData(initForm)
     setSubmitStatus('idle')
     setErrorMessage('')
   }
@@ -159,19 +186,16 @@ export default function Page() {
       <Typography component="h1" variant="h4" sx={{ mb: 3, textAlign: 'center' }}>
         {hasLatestAnswer ? 'Hasil Kecocokan Terakhir' : 'Rekomendasi Karir Berdasarkan Pilihan Anda'}
       </Typography>
-
       {submitStatus === 'success' && (
         <Alert severity="success" sx={{ mb: 3 }}>
           Jawaban berhasil disimpan!
         </Alert>
       )}
-
       {submitStatus === 'error' && (
         <Alert severity="error" sx={{ mb: 3 }}>
           {errorMessage || 'Terjadi kesalahan saat menyimpan jawaban Anda.'}
         </Alert>
       )}
-
       {/* Show latest answer if exists */}
       {hasLatestAnswer && latestAnswer && !showForm && (
         <Card sx={{ mb: 3 }}>
@@ -198,7 +222,6 @@ export default function Page() {
               <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50', mb: 2 }}>
                 <Typography variant="body2">{latestAnswer.mainAnswer}</Typography>
               </Paper>
-
               {latestAnswer.subAnswer && latestAnswer.subAnswer.trim() !== '' && (
                 <>
                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>
@@ -219,6 +242,28 @@ export default function Page() {
                 </Typography>
               </Paper>
             </Box>
+
+            {/* Tambahkan preview skor */}
+            {latestAnswer.scores && latestAnswer.scores.length > 0 && (
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                  Nilai Mata Pelajaran:
+                </Typography>
+                <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50' }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    {latestAnswer.scores.map((score: any) => (
+                      <Box
+                        key={score.groupId || score.group_id || score.id}
+                        sx={{ display: 'flex', justifyContent: 'space-between' }}
+                      >
+                        <Typography>{score.group?.name || score.title || '-'}</Typography>
+                        <Typography fontWeight="bold">{score.value ?? score.score}</Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </Paper>
+              </Box>
+            )}
 
             <Divider sx={{ my: 3 }} />
 
@@ -334,7 +379,35 @@ export default function Page() {
                     placeholder="Masukkan alasan pilihan lainnya Anda di sini..."
                   />
                 )}
-
+                <Divider sx={{ my: 2 }} />
+                {/* Input Scores */}
+                <Box className="w-full">
+                  <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'bold' }}>
+                    Masukkan Nilai Scores
+                  </Typography>
+                  {isLoadingScoreGroups ? (
+                    <CircularProgress size={20} />
+                  ) : (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      {scoreGroups.map((group, idx) => (
+                        <Box
+                          key={group.id}
+                          sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}
+                        >
+                          <Typography>{group.name}</Typography>
+                          <TextField
+                            type="number"
+                            size="small"
+                            sx={{ width: 100 }}
+                            value={formData.scores[idx]?.score || ''}
+                            onChange={(e) => handleScoreChange(group.id, Number(e.target.value))}
+                          />
+                        </Box>
+                      ))}
+                    </Box>
+                  )}
+                </Box>
+                <Divider sx={{ my: 2 }} />
                 <FormControl fullWidth required>
                   <InputLabel>Hasil Tes MBTI</InputLabel>
                   <Select

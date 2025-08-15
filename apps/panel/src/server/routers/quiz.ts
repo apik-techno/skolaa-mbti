@@ -3,19 +3,24 @@
  * This is an example router, you can delete this file and then update `../pages/api/trpc/[trpc].tsx`
  */
 import { auth } from '@/auth'
+import { env } from '@/env.mjs'
 import { baseResponse } from '@/utils/response'
-import { prisma } from '@repo/db'
+import { Prisma, prisma } from '@repo/db'
 import { TRPCError } from '@trpc/server'
 import OpenAI from 'openai'
+import { zodTextFormat } from 'openai/helpers/zod'
 import { z } from 'zod'
 import { pagination } from '../global'
 import { privateProcedure, publicProcedure, router } from '../trpc'
 
 const openai = new OpenAI({
-  apiKey:
-    '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',
+  apiKey: env.OPENAI_API_KEY,
 })
-
+const responseFormat = z.object({
+  recomendation: z.string().nonempty('Rekomendasi tidak boleh kosong'),
+  recomendationDetail: z.string().nonempty('Detail rekomendasi tidak boleh kosong'),
+  isMatch: z.boolean(),
+})
 export const quizRouter = router({
   makeAnswer: privateProcedure
     .input(
@@ -25,6 +30,13 @@ export const quizRouter = router({
         subAnswer: z.string().optional(),
         subReason: z.string().optional(),
         mbtiTestResult: z.string().nonempty('MBTI test result cannot be empty'),
+        scroes: z.array(
+          z.object({
+            groupId: z.string().nonempty('Group ID cannot be empty'),
+            title: z.string().nonempty('Tittle cannot be empty'),
+            score: z.number().int().min(0, 'Score must be a non-negative integer'),
+          }),
+        ),
       }),
     )
     .mutation(async ({ input }) => {
@@ -38,61 +50,75 @@ export const quizRouter = router({
       const user = await prisma.user.findFirst({ where: { id: userId } })
       if (!user) throw new TRPCError({ code: 'BAD_REQUEST', message: 'User not found in database' })
 
-      // Construct the content for AI, making subAnswer optional
-      let userContent = `User's main answer: ${input.mainAnswer}, Main reason: ${input.mainReason}, User's MBTI test result: ${input.mbtiTestResult}.`
+      // Bangun prompt dalam Bahasa Indonesia
+      let userContent = `Jawaban utama siswa: ${input.mainAnswer}, Alasan utama: ${input.mainReason}, Hasil tes MBTI: ${input.mbtiTestResult}.`
       if (input.subAnswer && input.subAnswer.trim() !== '') {
-        userContent += ` User's additional answer: ${input.subAnswer}.`
+        userContent += ` Jawaban tambahan: ${input.subAnswer}.`
         if (input.subReason && input.subReason.trim() !== '') {
-          userContent += ` Additional reason: ${input.subReason}.`
+          userContent += ` Alasan tambahan: ${input.subReason}.`
         }
       }
-      userContent += ' Provide a career recommendation and detailed explanation in JSON format.'
+      if (input.scroes && input.scroes.length > 0) {
+        const scoresList = input.scroes.map((s) => `${s.title}: ${s.score}`).join(', ')
+        userContent += ` Nilai siswa pada mata pelajaran berikut: ${scoresList}.`
+      }
+      userContent += ' Berikan rekomendasi karir dan penjelasan detail dalam format JSON.'
 
-      const response = await openai.chat.completions.create({
+      const response = await openai.responses.parse({
         model: 'gpt-4o-mini',
-        messages: [
+        input: [
           {
             role: 'system',
             content:
-              'You are a helpful assistant that provides career recommendations based on user input. Your response should be in JSON format with two fields: "recomendation" (short career recommendation in Indonesian) and "recomendationDetail" (detailed explanation in Indonesian).',
+              'Kamu adalah asisten yang membantu memberikan rekomendasi karir berdasarkan data siswa. Jawaban harus dalam format JSON dengan dua field: "rekomendasi" (rekomendasi karir singkat dalam Bahasa Indonesia) dan "rekomendasiDetail" (penjelasan detail dalam Bahasa Indonesia).',
           },
           {
             role: 'user',
             content: userContent,
           },
         ],
-        response_format: { type: 'json_object' },
-        max_tokens: 500,
-        temperature: 0.7,
+        text: {
+          format: zodTextFormat(responseFormat, 'recommendation'),
+        },
       })
 
-      const aiResponse = response.choices[0]?.message.content
+      const aiResponse = response.output_parsed
       let aiResult = null
       let aiRecommendation = null
-
+      let isMatch = false
       if (aiResponse) {
         try {
-          const parsedResponse = JSON.parse(aiResponse)
-          aiResult = parsedResponse.recomendation || 'Rekomendasi karir tidak tersedia'
-          aiRecommendation = parsedResponse.recomendationDetail || 'Rekomendasi detail tidak tersedia'
+          aiResult = aiResponse.recomendation || 'Rekomendasi karir tidak tersedia'
+          aiRecommendation = aiResponse.recomendationDetail || 'Rekomendasi detail tidak tersedia'
+          isMatch = aiResponse.isMatch || false
         } catch {
           aiResult = 'Error saat memproses respons AI'
           aiRecommendation = 'Silakan coba lagi nanti'
+          isMatch = false
         }
       }
 
-      await prisma.answer.create({
+      const result = await prisma.answer.create({
         data: {
           mainAnswer: input.mainAnswer,
           mainReason: input.mainReason,
           subAnswer: input.subAnswer || '', // Store empty string if not provided
           subReason: input.subReason || '', // Store empty string if not provided
           mbtiTestResult: input.mbtiTestResult,
+          isMatch,
           aiResult,
           aiRecommendation,
           userId: userId,
         },
       })
+      if (input.scroes && input.scroes.length > 0) {
+        const scoresData: Prisma.ScoreCreateManyInput[] = input.scroes.map((score) => ({
+          groupId: score.groupId,
+          answerId: result.id,
+          value: score.score,
+        }))
+        await prisma.score.createMany({ data: scoresData })
+      }
       return baseResponse({ message: 'Answer saved successfully', result: null })
     }),
 
@@ -105,6 +131,7 @@ export const quizRouter = router({
 
     const latestAnswer = await prisma.answer.findFirst({
       where: { userId: userId },
+      include: { scores: { include: { group: { select: { name: true } } } } },
       orderBy: { createdAt: 'desc' },
     })
 
@@ -136,7 +163,10 @@ export const quizRouter = router({
         where,
         ...(showAll ? {} : { take: pageSize, skip: page * pageSize }),
         orderBy: { createdAt: 'desc' },
-        include: { user: { select: { id: true, name: true, identity: true } } },
+        include: {
+          user: { select: { id: true, name: true, identity: true } },
+          scores: { include: { group: { select: { name: true } } } },
+        },
       })
       const total = await prisma.answer.count({ where })
       const lastPage = Math.ceil(total / pageSize)

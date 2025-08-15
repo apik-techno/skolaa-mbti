@@ -45,12 +45,41 @@ model Answer {
     // AI Result & Recommendation
     aiResult         String? @map("ai_result")
     aiRecommendation String? @map("ai_recommendation")
+    isMatch          Boolean @default(false) @map("is_match")
 
     userId String @map("user_id")
     user   User   @relation(fields: [userId], references: [id])
 
     createdAt DateTime @default(now()) @map("created_at")
     updatedAt DateTime @updatedAt @map("updated_at")
+    scores    Score[]
 
     @@map("answers")
+}
+
+model ScoreGroup {
+    id        String   @id @default(uuid()) @map("id")
+    name      String   @unique
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    scores Score[]
+
+    @@map("score_groups")
+}
+
+model Score {
+    id       String @id @default(uuid()) @map("id")
+    value    Int
+    groupId  String @map("group_id")
+    answerId String @map("answer_id")
+
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    group  ScoreGroup @relation(fields: [groupId], references: [id])
+    answer Answer     @relation(fields: [answerId], references: [id])
+
+    @@unique([groupId, answerId], name: "unique_group_answer")
+    @@map("scores")
 }
