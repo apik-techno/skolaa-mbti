@@ -46,6 +46,8 @@ model Answer {
     aiResult         String? @map("ai_result")
     aiRecommendation String? @map("ai_recommendation")
     isMatch          Boolean @default(false) @map("is_match")
+    trainLabel       String? @map("train_label")
+    trainPercentage  Json?   @map("train_percentage")
 
     userId String @map("user_id")
     user   User   @relation(fields: [userId], references: [id])

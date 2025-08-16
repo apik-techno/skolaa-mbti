@@ -249,19 +249,55 @@ export default function Page() {
                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                   Nilai Mata Pelajaran:
                 </Typography>
-                <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50' }}>
+                <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50', mb: 2 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    {latestAnswer.scores.map((score: any) => (
-                      <Box
-                        key={score.groupId || score.group_id || score.id}
-                        sx={{ display: 'flex', justifyContent: 'space-between' }}
-                      >
-                        <Typography>{score.group?.name || score.title || '-'}</Typography>
-                        <Typography fontWeight="bold">{score.value ?? score.score}</Typography>
-                      </Box>
-                    ))}
+                    {latestAnswer.scores.map((score: any) => {
+                      const percent = Math.round(((score.value ?? score.score ?? 0) / 100) * 100)
+                      return (
+                        <Box
+                          key={score.groupId || score.group_id || score.id}
+                          sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                        >
+                          <Typography>{score.group?.name || score.title || '-'}</Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography fontWeight="bold">{score.value ?? score.score}</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              ({percent}%)
+                            </Typography>
+                          </Box>
+                        </Box>
+                      )
+                    })}
                   </Box>
                 </Paper>
+
+                {/* Section khusus grafik presentase dari trainPercentage */}
+                {latestAnswer.trainPercentage && Object.keys(latestAnswer.trainPercentage).length > 0 && (
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                      Grafik Presentase Nilai Mata Pelajaran
+                    </Typography>
+                    <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50', mb: 2 }}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        {Object.entries(latestAnswer.trainPercentage).map(([name, percent]: [string, any]) => (
+                          <Box key={name} sx={{ mb: 1 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <Typography variant="body2">{name}</Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {percent}%
+                              </Typography>
+                            </Box>
+                            <Box sx={{ width: '100%', height: 8, bgcolor: 'grey.300', borderRadius: 2, mt: 0.5 }}>
+                              <Box
+                                sx={{ width: `${percent}%`, height: '100%', bgcolor: 'primary.main', borderRadius: 2 }}
+                              />
+                            </Box>
+                          </Box>
+                        ))}
+                      </Box>
+                    </Paper>
+                  </Box>
+                )}
               </Box>
             )}
 
@@ -328,8 +364,6 @@ export default function Page() {
                   label="Pilihan Utama"
                   variant="outlined"
                   fullWidth
-                  multiline
-                  rows={4}
                   value={formData.mainAnswer}
                   onChange={(e) => handleInputChange('mainAnswer', e.target.value)}
                   required
@@ -360,8 +394,6 @@ export default function Page() {
                     label="Pilihan Lainnya"
                     variant="outlined"
                     fullWidth
-                    multiline
-                    rows={3}
                     value={formData.subAnswer}
                     onChange={(e) => handleInputChange('subAnswer', e.target.value)}
                     placeholder="Masukkan pilihan lainnya Anda di sini..."

@@ -114,12 +114,20 @@ const DetailModal = ({ open, onClose, data }: { open: boolean; onClose: () => vo
                     Nilai Mata Pelajaran
                   </Typography>
                   <Box display="flex" flexDirection="column" gap={1}>
-                    {data.scores.map((score) => (
-                      <Box key={score.id} display="flex" justifyContent="space-between">
-                        <Typography>{score.group?.name || score.title || '-'}</Typography>
-                        <Typography fontWeight="bold">{score.value}</Typography>
-                      </Box>
-                    ))}
+                    {data.scores.map((score) => {
+                      const percent = Math.round(((score.value ?? 0) / 100) * 100)
+                      return (
+                        <Box key={score.id} display="flex" justifyContent="space-between" alignItems="center">
+                          <Typography>{score.group?.name || score.title || '-'}</Typography>
+                          <Box display="flex" alignItems="center" gap={1}>
+                            <Typography fontWeight="bold">{score.value}</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              ({percent}%)
+                            </Typography>
+                          </Box>
+                        </Box>
+                      )
+                    })}
                   </Box>
                 </Box>
               </Card>

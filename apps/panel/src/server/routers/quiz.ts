@@ -2,6 +2,7 @@
  *
  * This is an example router, you can delete this file and then update `../pages/api/trpc/[trpc].tsx`
  */
+import { predict } from '@/algoritm'
 import { auth } from '@/auth'
 import { env } from '@/env.mjs'
 import { baseResponse } from '@/utils/response'
@@ -16,11 +17,13 @@ import { privateProcedure, publicProcedure, router } from '../trpc'
 const openai = new OpenAI({
   apiKey: env.OPENAI_API_KEY,
 })
+
 const responseFormat = z.object({
   recomendation: z.string().nonempty('Rekomendasi tidak boleh kosong'),
   recomendationDetail: z.string().nonempty('Detail rekomendasi tidak boleh kosong'),
   isMatch: z.boolean(),
 })
+
 export const quizRouter = router({
   makeAnswer: privateProcedure
     .input(
@@ -42,7 +45,18 @@ export const quizRouter = router({
     .mutation(async ({ input }) => {
       const own = await auth()
       if (!own || !own.session?.id) throw new TRPCError({ code: 'BAD_REQUEST', message: 'User not found' })
-
+      const predictParams: Record<string, string | number> = input.scroes.reduce(
+        (acc, score) => {
+          acc[score.title] = score.score
+          return acc
+        },
+        {} as Record<string, string | number>,
+      )
+      predictParams['MBTI'] = input.mbtiTestResult
+      predictParams['Minat'] = input.mainAnswer
+      const prediction = predict(predictParams)
+      // console.log('Prediction:', predictParams, prediction)
+      // throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Prediction not implemented yet' })
       // Get userId from the authenticated user
       const userId = own.session.user?.id || own.session.id
 
@@ -86,6 +100,7 @@ export const quizRouter = router({
       let aiResult = null
       let aiRecommendation = null
       let isMatch = false
+
       if (aiResponse) {
         try {
           aiResult = aiResponse.recomendation || 'Rekomendasi karir tidak tersedia'
@@ -108,6 +123,8 @@ export const quizRouter = router({
           isMatch,
           aiResult,
           aiRecommendation,
+          trainLabel: prediction.predictedLabel,
+          trainPercentage: prediction.percentages,
           userId: userId,
         },
       })
