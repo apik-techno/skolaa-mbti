@@ -1,4 +1,4 @@
-import dataTrain from '../data_train.json'
+import dataTrain from '../data_train_ipa.json'
 // Model default hasil training dari data_train.json
 export const defaultModel = trainNaiveBayes(
   (dataTrain as unknown as TrainData[]).map((d) => {
