@@ -1,7 +1,31 @@
-import dataTrain from '../data_train.json'
+import dataTrain from '@/data_train.json'
+import trainIPA from '@/data_train_ipa.json'
+import trainIPS from '@/data_train_ips.json'
+
 // Model default hasil training dari data_train.json
 export const defaultModel = trainNaiveBayes(
   (dataTrain as unknown as TrainData[]).map((d) => {
+    // Remove undefined property values for compatibility
+    const clean: Record<string, string | number> = {}
+    for (const k in d) {
+      if (d[k] !== undefined) clean[k] = d[k] as string | number
+    }
+    return clean as TrainData
+  }),
+)
+
+export const trainIPAData = trainNaiveBayes(
+  (trainIPA as unknown as TrainData[]).map((d) => {
+    // Remove undefined property values for compatibility
+    const clean: Record<string, string | number> = {}
+    for (const k in d) {
+      if (d[k] !== undefined) clean[k] = d[k] as string | number
+    }
+    return clean as TrainData
+  }),
+)
+export const trainIPSData = trainNaiveBayes(
+  (trainIPS as unknown as TrainData[]).map((d) => {
     // Remove undefined property values for compatibility
     const clean: Record<string, string | number> = {}
     for (const k in d) {
@@ -29,7 +53,7 @@ function gaussianProb(x: number, mean: number, std: number): number {
 // ===== 2. Training model =====
 export type TrainData = Record<string, string | number | undefined> & { Label: string }
 
-type Model = {
+export type Model = {
   [label: string]: {
     prior: number
     stats: Record<string, { mean: number; std: number }>
@@ -72,9 +96,12 @@ export function trainNaiveBayes(data: TrainData[]): Model {
 }
 
 // ===== 3. Prediksi =====
-export function predict(input: Record<string, string | number>) {
+export function predict({ input, model: _model }: { input: Record<string, string | number>; model?: Model }): {
+  predictedLabel: string
+  percentages: Record<string, number>
+} {
   const probs: Record<string, number> = {}
-  const model = defaultModel
+  const model = _model || defaultModel
   for (const label in model) {
     const labelModel = model[label]
     if (!labelModel) continue

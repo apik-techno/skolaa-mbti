@@ -23,6 +23,7 @@ import { trpc } from '@/server/client'
 type FormData = {
   mainAnswer: string
   mainReason: string
+  major: 'ipa' | 'ips'
   subAnswer: string
   subReason: string
   mbtiTestResult: string
@@ -33,6 +34,7 @@ const initForm: FormData = {
   mainReason: '',
   subAnswer: '',
   subReason: '',
+  major: 'ipa',
   mbtiTestResult: '',
   scores: [],
 }
@@ -252,7 +254,6 @@ export default function Page() {
                 <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50', mb: 2 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                     {latestAnswer.scores.map((score: any) => {
-                      const percent = Math.round(((score.value ?? score.score ?? 0) / 100) * 100)
                       return (
                         <Box
                           key={score.groupId || score.group_id || score.id}
@@ -261,9 +262,6 @@ export default function Page() {
                           <Typography>{score.group?.name || score.title || '-'}</Typography>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <Typography fontWeight="bold">{score.value ?? score.score}</Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              ({percent}%)
-                            </Typography>
                           </Box>
                         </Box>
                       )
@@ -388,6 +386,21 @@ export default function Page() {
                   }
                   label="Tambahkan pilihan lainnya (opsional)"
                 />
+                <TextField
+                  label="Jurusan (IPA/IPS)"
+                  variant="outlined"
+                  fullWidth
+                  value={formData.major}
+                  onChange={(e) => handleInputChange('major', e.target.value as 'ipa' | 'ips')}
+                  select
+                  required
+                >
+                  {['ipa', 'ips'].map((major) => (
+                    <MenuItem key={major} value={major}>
+                      {major.toUpperCase()}
+                    </MenuItem>
+                  ))}
+                </TextField>
 
                 {showSubAnswer && (
                   <TextField
