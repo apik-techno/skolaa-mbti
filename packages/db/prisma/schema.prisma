@@ -7,22 +7,22 @@ generator client {
     provider = "prisma-client-js"
 }
 
-// Administration
+// Tabel User - contoh: admin, guru, siswa
 model User {
     id        String   @id @default(uuid()) @map("id")
     name      String
-    identity  String   @unique @map("identity")
-    password  String?
+    email     String
+    password  String
     createdAt DateTime @default(now()) @map("created_at")
     updatedAt DateTime @updatedAt @map("updated_at")
     roleId    String?
 
-    answers Answer[]
-    role    Role?    @relation(fields: [roleId], references: [id])
+    role Role? @relation(fields: [roleId], references: [id])
 
     @@map("users")
 }
 
+// Tabel Role - contoh: admin, guru, siswa
 model Role {
     id        String   @id @default(uuid()) @map("id")
     name      String   @unique
@@ -34,8 +34,54 @@ model Role {
     @@map("roles")
 }
 
+// Tabel Siswa
+model Student {
+    id       String @id @default(uuid()) @map("id")
+    name     String
+    identity String @unique @map("identity")
+    password String
+
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    answers Answer[]
+
+    @@map("students")
+}
+
+// Tabel Vokasi - contoh: ipa, ips, bahasa
+model Vocation {
+    id        String   @id @default(uuid()) @map("id")
+    key       String   @unique @map("key")
+    name      String
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    subjects Subject[] @relation("vocation_subjects")
+    answers  Answer[]
+
+    @@map("vocations")
+}
+
+// Tabel Mata Pelajaran - contoh: matematika, fisika, kimia
+model Subject {
+    id        String   @id @default(uuid()) @map("id")
+    name      String   @unique
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    vocations Vocation[] @relation("vocation_subjects")
+    scores    Score[]
+
+    @@map("subjects")
+}
+
+// Tabel Jawaban Siswa
 model Answer {
-    id             String @id @default(uuid()) @map("id")
+    id         String @id @default(uuid()) @map("id")
+    studentId  String @map("student_id")
+    vocationId String @map("vocation_id")
+
     mainAnswer     String @map("main_answer")
     mainReason     String @map("main_reason")
     subAnswer      String @map("sub_answer")
@@ -49,39 +95,29 @@ model Answer {
     trainLabel       String? @map("train_label")
     trainPercentage  Json?   @map("train_percentage")
 
-    userId String @map("user_id")
-    user   User   @relation(fields: [userId], references: [id])
-
     createdAt DateTime @default(now()) @map("created_at")
     updatedAt DateTime @updatedAt @map("updated_at")
-    scores    Score[]
+
+    scores   Score[]
+    vocation Vocation @relation(fields: [vocationId], references: [id])
+    student  Student  @relation(fields: [studentId], references: [id])
 
     @@map("answers")
 }
 
-model ScoreGroup {
-    id        String   @id @default(uuid()) @map("id")
-    name      String   @unique
-    createdAt DateTime @default(now()) @map("created_at")
-    updatedAt DateTime @updatedAt @map("updated_at")
-
-    scores Score[]
-
-    @@map("score_groups")
-}
-
+// Tabel Skor - menghubungkan mata pelajaran dengan jawaban siswa
 model Score {
-    id       String @id @default(uuid()) @map("id")
-    value    Int
-    groupId  String @map("group_id")
-    answerId String @map("answer_id")
+    id        String @id @default(uuid()) @map("id")
+    value     Int
+    subjectId String @map("subject_id")
+    answerId  String @map("answer_id")
 
     createdAt DateTime @default(now()) @map("created_at")
     updatedAt DateTime @updatedAt @map("updated_at")
 
-    group  ScoreGroup @relation(fields: [groupId], references: [id])
-    answer Answer     @relation(fields: [answerId], references: [id])
+    subject Subject @relation(fields: [subjectId], references: [id])
+    answer  Answer  @relation(fields: [answerId], references: [id])
 
-    @@unique([groupId, answerId], name: "unique_group_answer")
+    @@unique([subjectId, answerId], name: "unique_subject_answer")
     @@map("scores")
 }
