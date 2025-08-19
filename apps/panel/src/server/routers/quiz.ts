@@ -2,7 +2,7 @@
  *
  * This is an example router, you can delete this file and then update `../pages/api/trpc/[trpc].tsx`
  */
-import { predict } from '@/algoritm'
+import { Model, predict, trainIPAData, trainIPSData } from '@/algoritm'
 import { auth } from '@/auth'
 import { env } from '@/env.mjs'
 import { baseResponse } from '@/utils/response'
@@ -33,6 +33,7 @@ export const quizRouter = router({
         subAnswer: z.string().optional(),
         subReason: z.string().optional(),
         mbtiTestResult: z.string().nonempty('MBTI test result cannot be empty'),
+        major: z.string().default('ipa'),
         scroes: z.array(
           z.object({
             groupId: z.string().nonempty('Group ID cannot be empty'),
@@ -54,7 +55,8 @@ export const quizRouter = router({
       )
       predictParams['MBTI'] = input.mbtiTestResult
       predictParams['Minat'] = input.mainAnswer
-      const prediction = predict(predictParams)
+      const model: Model = input.major === 'ipa' ? trainIPAData : trainIPSData
+      const prediction = predict({ input: predictParams, model: model })
       // console.log('Prediction:', predictParams, prediction)
       // throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Prediction not implemented yet' })
       // Get userId from the authenticated user
