@@ -11,6 +11,15 @@
     "check-types": "tsc --noEmit",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:migrate:name": "prisma migrate dev --name",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:migrate:create-only": "prisma migrate dev --create-only",
+    "db:refresh": "prisma migrate reset --force",
+    "db:refresh:seed": "prisma migrate reset --force && prisma db seed",
+    "db:push:reset": "prisma db push --force-reset",
+    "db:status": "prisma migrate status",
+    "db:studio": "prisma studio",
     "db:seed": "prisma db seed"
   },
   "prisma": {

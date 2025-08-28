@@ -62,6 +62,7 @@ model Answer {
 model ScoreGroup {
     id        String   @id @default(uuid()) @map("id")
     name      String   @unique
+    type      String   @map("type") @db.VarChar(10) // IPA | IPS | GENERAL
     createdAt DateTime @default(now()) @map("created_at")
     updatedAt DateTime @updatedAt @map("updated_at")
 

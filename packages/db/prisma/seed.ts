@@ -105,51 +105,79 @@ async function upsertUser(userData: Prisma.UserUncheckedCreateInput) {
   })
 }
 
-// Seeder for ScoreGroup
-async function scoreGroups() {
-  const groups = [
-    'Pendidikan Agama Islam dan Budi Pekerti',
-    'Pendidikan Pancasila dan Kewarganegaraan',
-    'Bahasa Indonesia',
-    'Matematika',
-    'Sejarah Indonesia',
-    'Bahasa Inggris',
-    'Seni Budaya',
-    'Pendidikan Jasmani, Olahraga dan Kesehatan',
-    'Prakarya dan Kewirausahaan',
-    'Muatan Lokal Bahasa Daerah',
-    'Matematika (Peminatan)',
-    'Biologi',
-    'Fisika',
-    'Kimia',
-    'Bahasa Arab',
-    'Kecerdasan Umum',
-    'Pemahaman',
-    'Kemampuan Bahasa',
-    'Kemampuan Angka',
-    'Kemampuan Analisis',
-    'Kreativitas',
-    'Daya Ingat',
-    'Kemampuan Daya Bayang Ruang',
-    'Dorongan Berprestasi',
-    'Konsentrasi',
-    'Ketelitian',
-    'Kecepatan',
-    'Kepercayaan Diri',
-    'Stabilitas Emosi',
-    'Hubungan Antar Pribadi',
-    'Penyesuaian Diri',
-    'Kemandirian',
-  ]
+// subjects belonging to IPA only
+const ipaSubjects = new Set([
+  'Matematika (Peminatan)',
+  'Biologi',
+  'Fisika',
+  'Kimia',
+])
+
+// subjects belonging to IPS only
+const ipsSubjects = new Set([
+  'Sejarah',
+  'Ekonomi',
+  'Geografi',
+  'Sosiologi',
+])
+
+// all groups you want to seed
+const groups = [
+  'Pendidikan Agama Islam dan Budi Pekerti',
+  'Pendidikan Pancasila dan Kewarganegaraan',
+  'Bahasa Indonesia',
+  'Matematika',
+  'Sejarah Indonesia',
+  'Bahasa Inggris',
+  'Seni Budaya',
+  'Pendidikan Jasmani, Olahraga dan Kesehatan',
+  'Prakarya dan Kewirausahaan',
+  'Muatan Lokal Bahasa Daerah',
+  'Matematika (Peminatan)',
+  'Biologi',
+  'Fisika',
+  'Kimia',
+  'Sejarah',
+  'Ekonomi',
+  'Geografi',
+  'Sosiologi',
+  'Bahasa Arab',
+  'Kecerdasan Umum',
+  'Pemahaman',
+  'Kemampuan Bahasa',
+  'Kemampuan Angka',
+  'Kemampuan Analisis',
+  'Kreativitas',
+  'Daya Ingat',
+  'Kemampuan Daya Bayang Ruang',
+  'Dorongan Berprestasi',
+  'Konsentrasi',
+  'Ketelitian',
+  'Kecepatan',
+  'Kepercayaan Diri',
+  'Stabilitas Emosi',
+  'Hubungan Antar Pribadi',
+  'Penyesuaian Diri',
+  'Kemandirian',
+]
+
+function getType(name: string): 'IPA' | 'IPS' | 'GENERAL' {
+  if (ipaSubjects.has(name)) return 'IPA'
+  if (ipsSubjects.has(name)) return 'IPS'
+  return 'GENERAL'
+}
+
+export async function scoreGroups() {
   for (const name of groups) {
+    const type = getType(name)
+
     await prisma.scoreGroup.upsert({
       where: { name },
-      update: {},
-      create: { name },
+      update: { type },
+      create: { name, type },
     })
   }
 }
-
 async function main() {
   const seeders: Promise<void>[] = [user(), scoreGroups()]
   await Promise.all(seeders)
