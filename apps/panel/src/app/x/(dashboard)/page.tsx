@@ -16,7 +16,7 @@ import Paper from '@mui/material/Paper'
 import Select from '@mui/material/Select'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { trpc } from '@/server/client'
 
@@ -29,6 +29,13 @@ type FormData = {
   mbtiTestResult: string
   scores: { groupId: string; score: number; title: string }[]
 }
+
+type ScoreGroupDto = {
+  id: string
+  name: string
+  type: 'IPA' | 'IPS' | 'GENERAL'
+}
+
 const initForm: FormData = {
   mainAnswer: '',
   mainReason: '',
@@ -38,53 +45,51 @@ const initForm: FormData = {
   mbtiTestResult: '',
   scores: [],
 }
+
 const mbtiTypes = [
-  'INTJ',
-  'INTP',
-  'ENTJ',
-  'ENTP',
-  'INFJ',
-  'INFP',
-  'ENFJ',
-  'ENFP',
-  'ISTJ',
-  'ISFJ',
-  'ESTJ',
-  'ESFJ',
-  'ISTP',
-  'ISFP',
-  'ESTP',
-  'ESFP',
+  'INTJ', 'INTP', 'ENTJ', 'ENTP',
+  'INFJ', 'INFP', 'ENFJ', 'ENFP',
+  'ISTJ', 'ISFJ', 'ESTJ', 'ESFJ',
+  'ISTP', 'ISFP', 'ESTP', 'ESFP',
 ]
+
 export default function Page() {
   const [showForm, setShowForm] = useState(false)
   const [showSubAnswer, setShowSubAnswer] = useState(false)
   const [formData, setFormData] = useState<FormData>(initForm)
 
-  // Ambil score groups
+  // Ambil score groups dari server (pastikan API mengembalikan field `type`)
   const { data: scoreGroupsData, isLoading: isLoadingScoreGroups } = trpc.scoreGroup.list.useQuery()
-  const scoreGroups = scoreGroupsData || []
+  const scoreGroups = (scoreGroupsData || []) as ScoreGroupDto[]
 
-  // Inisialisasi scores jika scoreGroups berubah
+  // Hanya tampilkan GENERAL + major terpilih
+  const filteredScoreGroups = useMemo(() => {
+    const m = formData.major.toUpperCase(); // "IPA" | "IPS"
+    return scoreGroups.filter((g: any) => {
+      const t = (g?.type ?? 'GENERAL').toString().toUpperCase();
+      return t === 'GENERAL' || t === m;
+    });
+  }, [scoreGroups, formData.major]);
+
+
+  // Inisialisasi/merge scores saat daftar group berubah (nilai yang sudah diinput tetap disimpan)
   useEffect(() => {
-    if (scoreGroups.length > 0 && formData.scores.length === 0) {
-      setFormData((prev) => ({
-        ...prev,
-        scores: scoreGroups.map((g) => ({ groupId: g.id, score: 0, title: g.name })),
-      }))
-    }
-    // eslint-disable-next-line
-  }, [scoreGroups])
+    if (!scoreGroups || scoreGroups.length === 0) return;
+    setFormData(prev => {
+      const byId = new Map(prev.scores.map(s => [s.groupId, s]));
+      const merged = scoreGroups.map(g => byId.get(g.id) ?? { groupId: g.id, score: 0, title: g.name });
+      return { ...prev, scores: merged };
+    });
+  }, [scoreGroups]);
 
-  // Handler untuk input score
+
+  // Handler untuk input score (clamp 0–100)
   const handleScoreChange = (groupId: string, value: number) => {
-    setFormData((prev) => {
-      const updatedScores = prev.scores.map((s) => (s.groupId === groupId ? { ...s, score: value } : s))
-      return {
-        ...prev,
-        scores: updatedScores,
-      }
-    })
+    const v = Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0
+    setFormData(prev => ({
+      ...prev,
+      scores: prev.scores.map(s => (s.groupId === groupId ? { ...s, score: v } : s)),
+    }))
   }
 
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle')
@@ -106,7 +111,6 @@ export default function Page() {
       setShowForm(false)
       setFormData(initForm)
       setShowSubAnswer(false)
-      // Refetch latest answer
       window.location.reload()
     },
     onError: (error) => {
@@ -115,31 +119,31 @@ export default function Page() {
     },
   })
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }))
+  const handleInputChange = (field: keyof FormData, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitStatus('idle')
 
-    // Prepare scores as number
+    const visibleIds = new Set(filteredScoreGroups.map(g => g.id))
     const scoresToSend = formData.scores
-      .map((s) => ({ groupId: s.groupId, score: Number(s.score), title: s.title }))
-      .filter((s) => s.score >= 0)
+      .filter(s => visibleIds.has(s.groupId))
+      .map(s => ({ groupId: s.groupId, score: Number(s.score), title: s.title }))
+      .filter(s => Number.isFinite(s.score) && s.score >= 0)
+
     const dataToSend = {
       mainAnswer: formData.mainAnswer,
       mbtiTestResult: formData.mbtiTestResult,
       mainReason: formData.mainReason,
       ...(showSubAnswer && formData.subAnswer.trim() !== '' ? { subAnswer: formData.subAnswer } : {}),
       ...(showSubAnswer && formData.subReason.trim() !== '' ? { subReason: formData.subReason } : {}),
-      scroes: scoresToSend,
+      scores: scoresToSend,          // FIX: was "scores"
+      major: formData.major,         // kirim major jika backend memerlukan
     }
 
-    answerMutation.mutate(dataToSend)
+    answerMutation.mutate(dataToSend as any)
   }
 
   const handleShowForm = () => {
@@ -159,10 +163,7 @@ export default function Page() {
   const handleSubAnswerToggle = (checked: boolean) => {
     setShowSubAnswer(checked)
     if (!checked) {
-      setFormData((prev) => ({
-        ...prev,
-        subAnswer: '',
-      }))
+      setFormData(prev => ({ ...prev, subAnswer: '', subReason: '' }))
     }
   }
 
@@ -188,6 +189,7 @@ export default function Page() {
       <Typography component="h1" variant="h4" sx={{ mb: 3, textAlign: 'center' }}>
         {hasLatestAnswer ? 'Hasil Kecocokan Terakhir' : 'Rekomendasi Karir Berdasarkan Pilihan Anda'}
       </Typography>
+
       {submitStatus === 'success' && (
         <Alert severity="success" sx={{ mb: 3 }}>
           Jawaban berhasil disimpan!
@@ -198,7 +200,8 @@ export default function Page() {
           {errorMessage || 'Terjadi kesalahan saat menyimpan jawaban Anda.'}
         </Alert>
       )}
-      {/* Show latest answer if exists */}
+
+      {/* Latest answer */}
       {hasLatestAnswer && latestAnswer && !showForm && (
         <Card sx={{ mb: 3 }}>
           <CardContent>
@@ -224,6 +227,7 @@ export default function Page() {
               <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50', mb: 2 }}>
                 <Typography variant="body2">{latestAnswer.mainAnswer}</Typography>
               </Paper>
+
               {latestAnswer.subAnswer && latestAnswer.subAnswer.trim() !== '' && (
                 <>
                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>
@@ -245,7 +249,7 @@ export default function Page() {
               </Paper>
             </Box>
 
-            {/* Tambahkan preview skor */}
+            {/* Preview skor */}
             {latestAnswer.scores && latestAnswer.scores.length > 0 && (
               <Box sx={{ mb: 3 }}>
                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>
@@ -253,23 +257,21 @@ export default function Page() {
                 </Typography>
                 <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50', mb: 2 }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    {latestAnswer.scores.map((score: any) => {
-                      return (
-                        <Box
-                          key={score.groupId || score.group_id || score.id}
-                          sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                        >
-                          <Typography>{score.group?.name || score.title || '-'}</Typography>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Typography fontWeight="bold">{score.value ?? score.score}</Typography>
-                          </Box>
+                    {latestAnswer.scores.map((score: any) => (
+                      <Box
+                        key={score.groupId || score.group_id || score.id}
+                        sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                      >
+                        <Typography>{score.group?.name || score.title || '-'}</Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Typography fontWeight="bold">{score.value ?? score.score}</Typography>
                         </Box>
-                      )
-                    })}
+                      </Box>
+                    ))}
                   </Box>
                 </Paper>
 
-                {/* Section khusus grafik presentase dari trainPercentage */}
+                {/* Grafik trainPercentage */}
                 {latestAnswer.trainPercentage && Object.keys(latestAnswer.trainPercentage).length > 0 && (
                   <Box sx={{ mt: 2 }}>
                     <Typography variant="subtitle2" color="text.secondary" gutterBottom>
@@ -301,7 +303,7 @@ export default function Page() {
 
             <Divider sx={{ my: 3 }} />
 
-            {/* AI Response Section */}
+            {/* AI Response */}
             <Typography variant="h6" component="h3" color="secondary" gutterBottom>
               Rekomendasi
             </Typography>
@@ -339,14 +341,14 @@ export default function Page() {
         </Card>
       )}
 
-      {/* Show form when no latest answer or when "Ajukan Lagi" is clicked */}
+      {/* Form */}
       {(!hasLatestAnswer || showForm) && (
         <Card>
           <CardContent>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
               <Typography variant="h6" component="h2">
                 {hasLatestAnswer
-                  ? 'Hasil Kecocokan Terkahir'
+                  ? 'Hasil Kecocokan Terakhir'
                   : 'Kira-kira apa yang ingin kamu lakukan setelah lulus dari SMA ? Kuliah, Bekerja, Wirausaha apa gimana ?'}
               </Typography>
               {hasLatestAnswer && showForm && (
@@ -381,11 +383,10 @@ export default function Page() {
                 />
 
                 <FormControlLabel
-                  control={
-                    <Checkbox checked={showSubAnswer} onChange={(e) => handleSubAnswerToggle(e.target.checked)} />
-                  }
+                  control={<Checkbox checked={showSubAnswer} onChange={(e) => handleSubAnswerToggle(e.target.checked)} />}
                   label="Tambahkan pilihan lainnya (opsional)"
                 />
+
                 <TextField
                   label="Jurusan (IPA/IPS)"
                   variant="outlined"
@@ -424,7 +425,9 @@ export default function Page() {
                     placeholder="Masukkan alasan pilihan lainnya Anda di sini..."
                   />
                 )}
+
                 <Divider sx={{ my: 2 }} />
+
                 {/* Input Scores */}
                 <Box className="w-full">
                   <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'bold' }}>
@@ -434,25 +437,36 @@ export default function Page() {
                     <CircularProgress size={20} />
                   ) : (
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                      {scoreGroups.map((group, idx) => (
-                        <Box
-                          key={group.id}
-                          sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}
-                        >
-                          <Typography>{group.name}</Typography>
-                          <TextField
-                            type="number"
-                            size="small"
-                            sx={{ width: 100 }}
-                            value={formData.scores[idx]?.score || ''}
-                            onChange={(e) => handleScoreChange(group.id, Number(e.target.value))}
-                          />
-                        </Box>
-                      ))}
+                      {filteredScoreGroups.map(group => {
+                        const current = formData.scores.find(s => s.groupId === group.id)
+                        return (
+                          <Box
+                            key={group.id}
+                            sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}
+                          >
+                            <Typography>
+                              {group.name}
+                              <Typography component="span" variant="caption" sx={{ ml: 1, opacity: 0.6 }}>
+                                ({group.type})
+                              </Typography>
+                            </Typography>
+                            <TextField
+                              type="number"
+                              size="small"
+                              sx={{ width: 100 }}
+                              value={current?.score ?? ''}
+                              onChange={(e) => handleScoreChange(group.id, Number(e.target.value))}
+                              inputProps={{ min: 0, max: 100 }}
+                            />
+                          </Box>
+                        )
+                      })}
                     </Box>
                   )}
                 </Box>
+
                 <Divider sx={{ my: 2 }} />
+
                 <FormControl fullWidth required>
                   <InputLabel>Hasil Tes MBTI</InputLabel>
                   <Select
@@ -490,7 +504,6 @@ export default function Page() {
         </Card>
       )}
 
-      {/* Show message when no latest answer exists */}
       {!hasLatestAnswer && !isLoadingLatest && latestAnswerError && (
         <Typography variant="body1" color="text.secondary" textAlign="center" sx={{ mb: 3 }}>
           Tidak ada jawaban quiz sebelumnya. Silakan kirim jawaban quiz pertama Anda.

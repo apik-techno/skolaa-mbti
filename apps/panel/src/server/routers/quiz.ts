@@ -34,7 +34,7 @@ export const quizRouter = router({
         subReason: z.string().optional(),
         mbtiTestResult: z.string().nonempty('MBTI test result cannot be empty'),
         major: z.string().default('ipa'),
-        scroes: z.array(
+        scores: z.array(
           z.object({
             groupId: z.string().nonempty('Group ID cannot be empty'),
             title: z.string().nonempty('Tittle cannot be empty'),
@@ -46,7 +46,7 @@ export const quizRouter = router({
     .mutation(async ({ input }) => {
       const own = await auth()
       if (!own || !own.session?.id) throw new TRPCError({ code: 'BAD_REQUEST', message: 'User not found' })
-      const predictParams: Record<string, string | number> = input.scroes.reduce(
+      const predictParams: Record<string, string | number> = input.scores.reduce(
         (acc, score) => {
           acc[score.title] = score.score
           return acc
@@ -74,8 +74,8 @@ export const quizRouter = router({
           userContent += ` Alasan tambahan: ${input.subReason}.`
         }
       }
-      if (input.scroes && input.scroes.length > 0) {
-        const scoresList = input.scroes.map((s) => `${s.title}: ${s.score}`).join(', ')
+      if (input.scores && input.scores.length > 0) {
+        const scoresList = input.scores.map((s) => `${s.title}: ${s.score}`).join(', ')
         userContent += ` Nilai siswa pada mata pelajaran berikut: ${scoresList}.`
       }
       userContent += ' Berikan rekomendasi karir dan penjelasan detail dalam format JSON.'
@@ -130,8 +130,8 @@ export const quizRouter = router({
           userId: userId,
         },
       })
-      if (input.scroes && input.scroes.length > 0) {
-        const scoresData: Prisma.ScoreCreateManyInput[] = input.scroes.map((score) => ({
+      if (input.scores && input.scores.length > 0) {
+        const scoresData: Prisma.ScoreCreateManyInput[] = input.scores.map((score) => ({
           groupId: score.groupId,
           answerId: result.id,
           value: score.score,
