@@ -105,6 +105,8 @@ export default function Page() {
     refetchOnWindowFocus: false,
   })
 
+  // console.log('Latest Answer Data:', latestAnswerData)
+
   const answerMutation = trpc.quiz.makeAnswer.useMutation({
     onSuccess: () => {
       setSubmitStatus('success')
@@ -174,6 +176,12 @@ export default function Page() {
 
   const hasLatestAnswer = latestAnswerData?.result && !latestAnswerError
   const latestAnswer = latestAnswerData?.result
+  // Ambil data valid
+  const validTrainPercentage = latestAnswer?.trainPercentage
+    ? Object.entries(latestAnswer.trainPercentage).filter(
+      ([, percent]) => Number.isFinite(percent) && percent > 0
+    )
+    : []
 
   if (isLoadingLatest) {
     return (
@@ -272,14 +280,14 @@ export default function Page() {
                 </Paper>
 
                 {/* Grafik trainPercentage */}
-                {latestAnswer.trainPercentage && Object.keys(latestAnswer.trainPercentage).length > 0 && (
+                {validTrainPercentage.length > 0 && (
                   <Box sx={{ mt: 2 }}>
                     <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                       Grafik Presentase Nilai Mata Pelajaran
                     </Typography>
                     <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50', mb: 2 }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                        {Object.entries(latestAnswer.trainPercentage).map(([name, percent]: [string, any]) => (
+                        {validTrainPercentage.map(([name, percent]) => (
                           <Box key={name} sx={{ mb: 1 }}>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <Typography variant="body2">{name}</Typography>

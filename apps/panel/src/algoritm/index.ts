@@ -1,6 +1,6 @@
 import dataTrain from '@/data_train.json'
-import trainIPA from '@/data_train_ipa.json'
 import trainIPS from '@/data_train_ips.json'
+import trainIPA from '@/ipa_dataset.json'
 
 // Model default hasil training dari data_train.json
 export const defaultModel = trainNaiveBayes(
