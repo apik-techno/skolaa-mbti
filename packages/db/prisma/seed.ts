@@ -157,18 +157,6 @@ const vocationData = [
   },
 ]
 
-// Seeder for ScoreGroup
-async function subjects() {
-  const groups = vocationData.flatMap((vocation) => vocation.subjects)
-  for (const name of groups) {
-    await prisma.subject.upsert({
-      where: { name },
-      update: {},
-      create: { name },
-    })
-  }
-}
-
 async function vocations() {
   for (const vocation of vocationData) {
     await prisma.vocation.upsert({

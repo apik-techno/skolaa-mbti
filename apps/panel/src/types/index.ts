@@ -59,6 +59,7 @@ export type AppSession = {
 }
 
 export type AuthSessionData = {
-  user: AuthUserData
+  user?: AuthUserData
+  student?: AuthUserData
   role?: string
 }

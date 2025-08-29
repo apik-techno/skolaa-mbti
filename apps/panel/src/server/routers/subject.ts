@@ -1,11 +1,9 @@
 import { prisma } from '@repo/db'
 import { publicProcedure, router } from '../trpc'
 
-export const scoreGroupRouter = router({
+export const subjectRouter = router({
   list: publicProcedure.query(async () => {
-    const groups = await prisma.scoreGroup.findMany({
-      orderBy: { name: 'asc' },
-    })
+    const groups = await prisma.subject.findMany({ orderBy: { name: 'asc' } })
     return groups
   }),
 })

@@ -33,10 +33,11 @@ export const quizRouter = router({
         subAnswer: z.string().optional(),
         subReason: z.string().optional(),
         mbtiTestResult: z.string().nonempty('MBTI test result cannot be empty'),
-        major: z.string().default('ipa'),
+        vocationId: z.string().nonempty('Vocation ID cannot be empty'),
         scroes: z.array(
           z.object({
             groupId: z.string().nonempty('Group ID cannot be empty'),
+            subjectId: z.string().nonempty('Subject ID cannot be empty'),
             title: z.string().nonempty('Tittle cannot be empty'),
             score: z.number().int().min(0, 'Score must be a non-negative integer'),
           }),
@@ -55,7 +56,9 @@ export const quizRouter = router({
       )
       predictParams['MBTI'] = input.mbtiTestResult
       predictParams['Minat'] = input.mainAnswer
-      const model: Model = input.major === 'ipa' ? trainIPAData : trainIPSData
+      const vocation = await prisma.vocation.findFirst({ where: { id: input.vocationId } })
+      if (!vocation) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Vocation not found' })
+      const model: Model = vocation.key === 'ipa' ? trainIPAData : trainIPSData
       const prediction = predict({ input: predictParams, model: model })
       // console.log('Prediction:', predictParams, prediction)
       // throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Prediction not implemented yet' })
@@ -88,10 +91,7 @@ export const quizRouter = router({
             content:
               'Kamu adalah asisten yang membantu memberikan rekomendasi karir berdasarkan data siswa. Jawaban harus dalam format JSON dengan dua field: "rekomendasi" (rekomendasi karir singkat dalam Bahasa Indonesia) dan "rekomendasiDetail" (penjelasan detail dalam Bahasa Indonesia).',
           },
-          {
-            role: 'user',
-            content: userContent,
-          },
+          { role: 'user', content: userContent },
         ],
         text: {
           format: zodTextFormat(responseFormat, 'recommendation'),
@@ -127,12 +127,14 @@ export const quizRouter = router({
           aiRecommendation,
           trainLabel: prediction.predictedLabel,
           trainPercentage: prediction.percentages,
-          userId: userId,
+          studentId: userId,
+          vocationId: input.vocationId,
         },
       })
       if (input.scroes && input.scroes.length > 0) {
         const scoresData: Prisma.ScoreCreateManyInput[] = input.scroes.map((score) => ({
           groupId: score.groupId,
+          subjectId: score.subjectId,
           answerId: result.id,
           value: score.score,
         }))
@@ -149,8 +151,8 @@ export const quizRouter = router({
     const userId = own.session.user?.id || own.session.id
 
     const latestAnswer = await prisma.answer.findFirst({
-      where: { userId: userId },
-      include: { scores: { include: { group: { select: { name: true } } } } },
+      where: { studentId: userId },
+      include: { scores: { include: { answer: false, subject: true } } },
       orderBy: { createdAt: 'desc' },
     })
 
@@ -169,7 +171,7 @@ export const quizRouter = router({
       // Build where clause for search
       const where = search
         ? {
-            user: {
+            student: {
               OR: [
                 { name: { contains: search, mode: 'insensitive' as const } },
                 { identity: { contains: search, mode: 'insensitive' as const } },
@@ -183,8 +185,8 @@ export const quizRouter = router({
         ...(showAll ? {} : { take: pageSize, skip: page * pageSize }),
         orderBy: { createdAt: 'desc' },
         include: {
-          user: { select: { id: true, name: true, identity: true } },
-          scores: { include: { group: { select: { name: true } } } },
+          student: { select: { id: true, name: true, identity: true } },
+          scores: { include: { answer: false, subject: true } },
         },
       })
       const total = await prisma.answer.count({ where })

@@ -1,5 +1,5 @@
 import 'next-auth'
-import { AuthSessionData } from '.'
+import { AuthSessionData, AuthUserData } from '.'
 
 declare module 'next-auth' {
   interface JWT extends User {
@@ -9,7 +9,8 @@ declare module 'next-auth' {
     jti?: string
   }
   interface User extends AuthSessionData {
-    user: AuthUserData
+    user?: AuthUserData
+    student?: AuthUserData
     role?: string
   }
 

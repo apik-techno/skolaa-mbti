@@ -1,6 +1,6 @@
 import { cookie, getLocalUrl } from '@/constants'
 import { env } from '@/env.mjs'
-import { Role, User } from '@repo/db'
+import { Student } from '@repo/db'
 import axios from 'axios'
 import { NextAuthConfig } from 'next-auth'
 import CredentialProvider from 'next-auth/providers/credentials'
@@ -22,12 +22,9 @@ const authConfig: NextAuthConfig = {
           if (!identity || !password) {
             throw new Error('Invalid credentials')
           }
-          const user = (
-            await axios.post<User & { role: Role }>(`${getLocalUrl()}/api/auth-login`, { identity, password })
-          ).data
+          const student = (await axios.post<Student>(`${getLocalUrl()}/api/student-login`, { identity, password })).data
           const auth: AuthSessionData = {
-            user: { name: user.name, identity: user.identity, id: user.id },
-            role: user.role.name,
+            student: { name: student.name, identity: student.identity, id: student.id },
           }
           return auth
         } catch (error) {
