@@ -58,6 +58,7 @@ export const quizRouter = router({
       const model: Model = input.major === 'ipa' ? trainIPAData : trainIPSData
       const prediction = predict({ input: predictParams, model: model })
       // console.log('Prediction:', predictParams, prediction)
+
       // throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Prediction not implemented yet' })
       // Get userId from the authenticated user
       const userId = own.session.user?.id || own.session.id
@@ -66,34 +67,55 @@ export const quizRouter = router({
       const user = await prisma.user.findFirst({ where: { id: userId } })
       if (!user) throw new TRPCError({ code: 'BAD_REQUEST', message: 'User not found in database' })
 
-      // Bangun prompt dalam Bahasa Indonesia
-      let userContent = `Jawaban utama siswa: ${input.mainAnswer}, Alasan utama: ${input.mainReason}, Hasil tes MBTI: ${input.mbtiTestResult}.`
-      if (input.subAnswer && input.subAnswer.trim() !== '') {
+      const predictedLabel = prediction.predictedLabel as string
+
+      // Build a concise, friendly user content
+      let userContent = `Jawaban utama (minat): ${input.mainAnswer}. Alasan: ${input.mainReason}. MBTI: ${input.mbtiTestResult}.`
+      if (input.subAnswer?.trim()) {
         userContent += ` Jawaban tambahan: ${input.subAnswer}.`
-        if (input.subReason && input.subReason.trim() !== '') {
-          userContent += ` Alasan tambahan: ${input.subReason}.`
-        }
+        if (input.subReason?.trim()) userContent += ` Alasan tambahan: ${input.subReason}.`
       }
-      if (input.scores && input.scores.length > 0) {
+      if (input.scores?.length) {
         const scoresList = input.scores.map((s) => `${s.title}: ${s.score}`).join(', ')
-        userContent += ` Nilai siswa pada mata pelajaran berikut: ${scoresList}.`
+        userContent += ` Nilai: ${scoresList}.`
       }
-      userContent += ' Berikan rekomendasi karir dan penjelasan detail dalam format JSON.'
+      userContent += ` Prediksi model: ${predictedLabel}. Berikan rekomendasi dalam JSON.`
 
       const response = await openai.responses.parse({
         model: 'gpt-4o-mini',
         input: [
           {
             role: 'system',
-            content:
-              'Kamu adalah asisten yang membantu memberikan rekomendasi karir berdasarkan data siswa. Jawaban harus dalam format JSON dengan dua field: "rekomendasi" (rekomendasi karir singkat dalam Bahasa Indonesia) dan "rekomendasiDetail" (penjelasan detail dalam Bahasa Indonesia).',
+            content: [
+              'Kamu adalah konselor karier yang ramah dan suportif.',
+              'Selalu balas dalam format JSON **saja** dengan field berikut:',
+              '- "recomendation": string (judul rekomendasi karier singkat, Bahasa Indonesia).',
+              '- "recomendationDetail": string (penjelasan 120–180 kata, nada hangat, tanpa bullet/markdown).',
+              '- "isMatch": boolean.',
+              '',
+              'Aturan penting pemilihan rekomendasi:',
+              '1) Bandingkan minat utama siswa (jawaban utama) dengan prediksi model yang diberikan:',
+              `   - Prediksi model: "${predictedLabel}".`,
+              `   - Minat utama: "${input.mainAnswer}".`,
+              '2) Jika minat utama TIDAK selaras/kurang terkait dengan prediksi model:',
+              '   - Set "recomendation" = prediksi model persis.',
+              '   - Set "isMatch" = false.',
+              '   - Pada "recomendationDetail", jelaskan dengan ramah *mengapa* model menyarankan jalur tersebut (rujuk nilai/MBTI),',
+              '     apresiasi minat siswa, dan beri saran bagaimana tetap mengeksplor minat tersebut (mis. sebagai hobi/ekstrakurikuler/mata pilihan),',
+              '     serta langkah awal realistis menuju jalur yang direkomendasikan.',
+              '3) Jika minat utama SELARAS dengan prediksi model:',
+              '   - Set "recomendation" = jalur yang sejalan (boleh sama dengan prediksi).',
+              '   - Set "isMatch" = true.',
+              '   - Pada "recomendationDetail", soroti kekuatan siswa (nilai/MBTI), peluang studi/karier, dan langkah konkret awal.',
+              '',
+              'Gaya bahasa: sederhana, positif, dan empatik. Jangan gunakan istilah teknis berlebihan.',
+              'Jangan menambahkan teks di luar JSON.'
+            ].join('\n'),
           },
-          {
-            role: 'user',
-            content: userContent,
-          },
+          { role: 'user', content: userContent },
         ],
         text: {
+          // keep your zod schema with the existing (intentionally misspelled) keys
           format: zodTextFormat(responseFormat, 'recommendation'),
         },
       })
